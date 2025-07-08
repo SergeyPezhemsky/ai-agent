@@ -12,7 +12,17 @@
 
     public async Task ExecuteAsync(AgentContext context)
     {
-        var result = await _llm.AskAsync($"Выполни шаг: {Step}", context);
-        context.Logs.Add($"{Name}: результат LLM — {result}");
+        var previous = context.Memory
+            .Where(kv => kv.Key.StartsWith("Result:"))
+            .Select(kv => $"{kv.Key.Replace("Result:", "")}: {kv.Value}")
+            .ToList();
+
+        var history = string.Join("\n", previous);
+        var prompt = $"Контекст:\n{history}\n\nШаг: {Step}\nЧто нужно сделать?";
+
+        var result = await _llm.AskAsync(prompt, context);
+
+        context.Logs.Add($"{Name}: с учётом истории: {result}");
+        context.Memory[$"Result:{Step}"] = result;
     }
 }
