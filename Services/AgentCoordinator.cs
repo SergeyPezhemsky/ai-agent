@@ -1,31 +1,38 @@
 public class AgentCoordinator
 {
-    private readonly List<IAgent> _initialAgents;
     private readonly ILlmService _llm;
 
     public AgentCoordinator(ILlmService llm)
     {
         _llm = llm;
-        var builder = new BuilderAgent();
-        builder.InjectLlm(_llm);
-        _initialAgents = new List<IAgent>
-        {
-            new PlannerAgent(),
-            builder
-        };
     }
 
-    public async Task<AgentContext> ProcessAsync(string userRequest)
+    public async Task<AgentContext> ProcessAsync(string userRequest, string sessionId = "default")
     {
-        var context = new AgentContext { UserRequest = userRequest };
-
-        foreach (var agent in _initialAgents)
-            await agent.ExecuteAsync(context);
-
-        if (context.Memory.TryGetValue("Workers", out var workerObj) && workerObj is List<IAgent> workers)
+        var context = new AgentContext
         {
-            foreach (var worker in workers)
-                await worker.ExecuteAsync(context);
+            UserRequest = userRequest,
+            SessionId = sessionId,
+            MessageHistory = new List<ChatMessage>
+            {
+                new ChatMessage { Role = "user", Content = userRequest }
+            }
+        };
+
+        var planner = new PlannerAgent();
+        planner.InjectLlm(_llm);
+        await planner.ExecuteAsync(context);
+
+        var builder = new BuilderAgent();
+        builder.InjectLlm(_llm);
+        await builder.ExecuteAsync(context);
+
+        if (context.Memory.TryGetValue("Workers", out var list) && list is List<IWorkerAgent> workers)
+        {
+            foreach (var agent in workers)
+            {
+                await agent.ExecuteAsync(context);
+            }
         }
 
         return context;

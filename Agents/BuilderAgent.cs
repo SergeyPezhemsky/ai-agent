@@ -21,7 +21,12 @@ public class BuilderAgent : IAgent
 Шаг: '{step}'
 Ответи только одним словом: tool, llm или user.";
 
-            var type = await _llm.AskAsync(prompt, context);
+            var messages = new List<ChatMessage>
+            {
+                new ChatMessage { Role = "user", Content = prompt }
+            };
+
+            var type = await _llm.AskAsync(messages, context);
             type = type.ToLowerInvariant().Trim();
 
             IWorkerAgent agent = type switch

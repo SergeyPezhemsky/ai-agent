@@ -1,4 +1,4 @@
-﻿public class LlmAgent : IWorkerAgent
+public class LlmAgent : IWorkerAgent
 {
     public string Name => $"LlmAgent: {Step}";
     public string Step { get; }
@@ -12,17 +12,13 @@
 
     public async Task ExecuteAsync(AgentContext context)
     {
-        var previous = context.Memory
-            .Where(kv => kv.Key.StartsWith("Result:"))
-            .Select(kv => $"{kv.Key.Replace("Result:", "")}: {kv.Value}")
-            .ToList();
+        var messages = context.MessageHistory.ToList();
+        messages.Add(new ChatMessage { Role = "user", Content = $"Теперь шаг: {Step}" });
 
-        var history = string.Join("\n", previous);
-        var prompt = $"Контекст:\n{history}\n\nШаг: {Step}\nЧто нужно сделать?";
+        var result = await _llm.AskAsync(messages, context);
 
-        var result = await _llm.AskAsync(prompt, context);
-
-        context.Logs.Add($"{Name}: с учётом истории: {result}");
+        context.Logs.Add($"{Name}: результат LLM — {result}");
         context.Memory[$"Result:{Step}"] = result;
+        context.MessageHistory.Add(new ChatMessage { Role = "assistant", Content = result });
     }
 }

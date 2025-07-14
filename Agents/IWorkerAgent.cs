@@ -1,4 +1,4 @@
-﻿public interface IWorkerAgent : IAgent
+public interface IWorkerAgent : IAgent
 {
     string Step { get; }
 }
